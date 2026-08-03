@@ -228,19 +228,76 @@
   <div class="page-head">
     <span class="eyebrow">JPERA3D · ferramenta interna</span>
     <h1>Calculadora de Viabilidade</h1>
-    <div class="sub">Decisão rápida: esse produto se paga em qual plataforma? Preencha o custo e veja na hora.</div>
+    <div class="sub">Decisão rápida: esse produto se paga em qual plataforma? Informe peso do filamento e tempo de impressão e veja na hora.</div>
   </div>
 
   <div class="card">
-    <h2>Custo &amp; meta</h2>
+    <h2>Custo de produção</h2>
     <div class="grid">
       <div class="field">
-        <label>Custo do produto</label>
-        <div class="input-wrap has-prefix">
-          <span class="prefix">R$</span>
-          <input type="number" id="cost" step="0.01" value="15.00">
+        <label>Peso do filamento</label>
+        <div class="input-wrap has-suffix">
+          <input type="number" id="weight" step="1" placeholder="ex: 35">
+          <span class="suffix">g</span>
         </div>
       </div>
+      <div class="field">
+        <label>Preço do filamento</label>
+        <div class="input-wrap has-prefix">
+          <span class="prefix">R$/kg</span>
+          <input type="number" id="filPrice" step="1" value="120">
+        </div>
+      </div>
+      <div class="field">
+        <label>Tempo de impressão</label>
+        <div class="input-wrap has-suffix">
+          <input type="number" id="printTime" step="1" placeholder="ex: 120">
+          <span class="suffix">min</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Custo hora-máquina</label>
+        <div class="input-wrap has-prefix">
+          <span class="prefix">R$/h</span>
+          <input type="number" id="machineRate" step="0.5" placeholder="0">
+        </div>
+      </div>
+      <div class="field">
+        <label>Outros custos (embalagem, etc)</label>
+        <div class="input-wrap has-prefix">
+          <span class="prefix">R$</span>
+          <input type="number" id="extraCost" step="0.5" placeholder="0">
+        </div>
+      </div>
+    </div>
+
+    <div class="costOut">Custo calculado: <b id="calcCostOut">—</b></div>
+
+    <details>
+      <summary>Prefiro digitar o custo direto (sem detalhar impressão)</summary>
+      <div class="detail-grid grid">
+        <div class="field">
+          <label>Custo do produto (manual)</label>
+          <div class="input-wrap has-prefix">
+            <span class="prefix">R$</span>
+            <input type="number" id="costManual" step="0.01" placeholder="0,00">
+          </div>
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <label class="toggle">
+            <input type="checkbox" id="manualCostToggle">
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            <span class="toggle-text">Usar este valor em vez do cálculo por material/impressão</span>
+          </label>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>Preço &amp; meta</h2>
+    <div class="grid">
       <div class="field">
         <label>Preço de venda pretendido <span style="opacity:.6">— opcional</span></label>
         <div class="input-wrap has-prefix">
@@ -263,53 +320,12 @@
         </div>
       </div>
     </div>
-    <details open>
-      <summary>Detalhar custo por material / impressão</summary>
-      <div class="detail-grid grid">
-        <div class="field">
-          <label>Peso do filamento</label>
-          <div class="input-wrap has-suffix">
-            <input type="number" id="weight" step="1" placeholder="0">
-            <span class="suffix">g</span>
-          </div>
-        </div>
-        <div class="field">
-          <label>Preço do filamento</label>
-          <div class="input-wrap has-prefix">
-            <span class="prefix">R$/kg</span>
-            <input type="number" id="filPrice" step="1" value="120">
-          </div>
-        </div>
-        <div class="field">
-          <label>Tempo de impressão</label>
-          <div class="input-wrap has-suffix">
-            <input type="number" id="printTime" step="1" placeholder="0">
-            <span class="suffix">min</span>
-          </div>
-        </div>
-        <div class="field">
-          <label>Custo hora-máquina</label>
-          <div class="input-wrap has-prefix">
-            <span class="prefix">R$/h</span>
-            <input type="number" id="machineRate" step="0.5" placeholder="0">
-          </div>
-        </div>
-        <div class="field">
-          <label>Outros custos (embalagem, etc)</label>
-          <div class="input-wrap has-prefix">
-            <span class="prefix">R$</span>
-            <input type="number" id="extraCost" step="0.5" placeholder="0">
-          </div>
-        </div>
-      </div>
-      <div class="costOut">Custo calculado: <b id="calcCostOut">—</b> <button class="btn-ghost" onclick="applyCalcCost()">usar este valor ↑</button></div>
-    </details>
   </div>
 
   <div class="hero neutral" id="hero">
     <div class="hero-label">Veredito</div>
     <div class="hero-number" id="heroNumber">—</div>
-    <div class="hero-desc" id="heroDesc">Preencha o custo do produto para ver a recomendação.</div>
+    <div class="hero-desc" id="heroDesc">Preencha peso do filamento e tempo de impressão (ou digite o custo direto) para ver a recomendação.</div>
     <div class="hero-badge neutral" id="heroBadge"><span class="dot"></span><span id="heroBadgeText">aguardando dados</span></div>
   </div>
 
@@ -402,15 +418,14 @@ function calcBreakdownCost(){
   return materialCost + machineCost + extra;
 }
 
-function applyCalcCost(){
-  const c = calcBreakdownCost();
-  document.getElementById('cost').value = c.toFixed(2);
-  render();
-}
-
 function updateCostPreview(){
   const c = calcBreakdownCost();
   document.getElementById('calcCostOut').textContent = fmtR(c);
+}
+
+function effectiveCost(){
+  const manualOn = document.getElementById('manualCostToggle').checked;
+  return manualOn ? num('costManual') : calcBreakdownCost();
 }
 
 // fee = { pct, fixed }
@@ -462,7 +477,7 @@ function fmtPct(v){ return v === null || v === undefined || isNaN(v) ? '—' : v
 
 function render(){
   updateCostPreview();
-  const cost = num('cost');
+  const cost = effectiveCost();
   const priceInput = document.getElementById('price').value;
   const price = priceInput === '' ? null : num('price');
   const marginTarget = num('marginTarget');
@@ -546,7 +561,7 @@ function render(){
 
   if (cost <= 0){
     heroNumber.textContent = '—';
-    heroDesc.textContent = 'Preencha o custo do produto para ver a recomendação.';
+    heroDesc.textContent = 'Preencha peso do filamento e tempo de impressão (ou digite o custo direto) para ver a recomendação.';
     heroBadge.classList.add('neutral');
     heroBadgeText.textContent = 'aguardando dados';
   } else if (bestIdx < 0){
