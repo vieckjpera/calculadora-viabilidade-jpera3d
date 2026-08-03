@@ -390,12 +390,12 @@
         </div>
       </div>
       <div class="field">
-        <label>ML taxa fixa venda &lt; R$79</label>
+        <label>ML custo operacional (peso/preço)</label>
         <div class="input-wrap has-prefix">
           <span class="prefix">R$</span>
           <input type="number" id="mlFixed" step="0.1" value="6.50">
         </div>
-        <div class="hint">Desde mar/2026 essa taxa é calculada por peso/dimensão do pacote no seller center do ML — ajuste se souber o valor real do seu produto.</div>
+        <div class="hint">Desde mar/2026 o ML cobra por uma matriz de peso × faixa de preço (232 combinações, válida a partir de R$19) no lugar da antiga taxa fixa — não dá pra replicar aqui com exatidão. Confira o valor real no Simulador de Custos do ML e ajuste este campo.</div>
       </div>
       <div class="field">
         <label>TikTok — Frete Grátis, taxa adicional</label>
@@ -423,9 +423,9 @@
   </details>
 
   <div class="footer-note">
-    <b>Shopee:</b> tabela por faixa de preço (base, sem afiliado) — ≤R$79,99 = 20%+R$4 · R$80–99,99 = 14%+R$16 · R$100–199,99 = 14%+R$20 · ≥R$200 = 14%+R$26 (teto de R$100 removido em fev/2026). O campo "comissão afiliado extra" soma por cima dessa base.<br>
-    <b>TikTok Shop</b> (regras de jul/2026): produtos &lt;R$50 = 10% · produtos ≥R$50 = 6%+R$6 fixo por item. Ative o Frete Grátis acima para somar a taxa adicional configurada.<br>
-    <b>Mercado Livre:</b> comissão varia por categoria — os % acima são médias de referência (Clássico/Premium), confira a categoria do seu produto no seller center para o valor exato.<br>
+    <b>Shopee</b> (oficial, vendedor CNPJ — confirmado no Centro de Educação do Vendedor Shopee, mai/2026): &lt;R$8 = 50% do valor (regra especial) · R$8–79,99 = 20%+R$4 · R$80–99,99 = 14%+R$16 · R$100–199,99 = 14%+R$20 · ≥R$200 = 14%+R$26 (teto de R$100 removido em fev/2026; o Subsídio Pix de 5–8% é descontado do comprador, não afeta seu repasse). O campo "comissão afiliado extra" soma por cima dessa base.<br>
+    <b>TikTok Shop</b> (oficial, Seller University, vigente desde 15/jul/2026): produtos &lt;R$50 = 10%+R$4 fixo · produtos ≥R$50 = 6%+R$6 fixo por item. Frete Grátis soma +6% fixo, independente da faixa. Taxas incidem sobre o preço já com desconto do vendedor.<br>
+    <b>Mercado Livre:</b> comissão por categoria — Clássico 10–14%, Premium 15–19% (confira a categoria exata no seller center). Desde mar/2026 o antigo custo fixo de baixo valor virou uma matriz de peso × faixa de preço (232 combinações, válida a partir de R$19) — o campo "custo operacional" é só uma referência editável; use o Simulador de Custos do ML para o valor exato do seu produto.<br>
     "Veredito" compara a margem líquida no preço informado com a margem alvo definida acima. Sem preço informado, mostra apenas o preço mínimo necessário.
   </div>
 </div>
@@ -456,14 +456,18 @@ function effectiveCost(){
 // fee = { pct, fixed }
 function feeShopee(price, affiliatePct){
   let tier;
-  if (price <= 79.99) tier = {pct:0.20, fixed:4};
+  if (price > 0 && price < 8) tier = {pct:0.50, fixed:0}; // regra especial: adicional = metade do preço para itens <R$8
+  else if (price <= 79.99) tier = {pct:0.20, fixed:4};
   else if (price <= 99.99) tier = {pct:0.14, fixed:16};
   else if (price <= 199.99) tier = {pct:0.14, fixed:20};
   else tier = {pct:0.14, fixed:26};
   return {pct: tier.pct + (affiliatePct||0)/100, fixed: tier.fixed};
 }
 function feeML(price, pct, fixed){
-  return {pct: pct/100, fixed: price < 79 ? fixed : 0};
+  // Desde mar/2026 o custo operacional variável (peso x faixa de preço, 232 combinações)
+  // substituiu a antiga taxa fixa de baixo valor e passou a valer de forma ampla (a partir de R$19).
+  // Não dá para replicar a matriz oficial aqui — o campo é um valor manual de referência.
+  return {pct: pct/100, fixed: fixed};
 }
 function feeTikTok(price, freeShipping, freeShipPct){
   const base = price < 50 ? {pct:0.10, fixed:0} : {pct:0.06, fixed:6};
