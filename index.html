@@ -151,6 +151,17 @@
   input[type=number]{-moz-appearance:textfield;}
   .field{margin-bottom:2px;}
   .hint{font-size:11.5px; color:var(--muted); margin-top:6px; line-height:1.5;}
+  select{
+    flex:1 1 auto; width:100%; min-width:0; background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+    padding:11px 12px; border-radius:var(--r-sm); font-size:13.5px; font-family:var(--font-mono);
+    appearance:none; -webkit-appearance:none; cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23787d87'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 12px center; padding-right:28px;
+  }
+  select:hover{border-color:#3a3f48;}
+  select:focus{outline:none; border-color:var(--accent); background-color:var(--surface-3); box-shadow:0 0 0 3px var(--accent-soft);}
+  select:focus-visible{outline:none;}
+  .field.sub-field{margin-top:10px;}
 
   details{margin-top:14px;}
   summary{
@@ -414,11 +425,30 @@
         </label>
       </div>
       <div class="field">
-        <label>Loja própria — taxa gateway</label>
-        <div class="input-wrap has-suffix">
-          <input type="number" id="ownGateway" step="0.1" value="5">
-          <span class="suffix">%</span>
-        </div>
+        <label>Loja própria — forma de pagamento</label>
+        <select id="ownMethod">
+          <option value="cartao">Cartão de crédito (Nuvem Pago)</option>
+          <option value="pix">PIX (Nuvem Pago)</option>
+          <option value="boleto">Boleto (Nuvem Pago)</option>
+        </select>
+      </div>
+      <div class="field sub-field" id="ownPlanoField">
+        <label>Loja própria — plano Nuvemshop</label>
+        <select id="ownPlano">
+          <option value="comeco">Começo</option>
+          <option value="essencial" selected>Essencial</option>
+          <option value="impulso">Impulso</option>
+          <option value="escala">Escala</option>
+        </select>
+      </div>
+      <div class="field sub-field" id="ownPrazoField">
+        <label>Loja própria — prazo de recebimento</label>
+        <select id="ownPrazo">
+          <option value="30">30 dias</option>
+          <option value="14">14 dias</option>
+          <option value="2" selected>2 dias</option>
+        </select>
+        <div class="hint">Cartão soma R$0,35 fixo por venda além do %. PIX é sempre 0,99% (sem fixo). Boleto é sempre R$2,39 fixo (sem %) — plano e prazo não se aplicam a esses dois.</div>
       </div>
     </div>
   </details>
@@ -427,6 +457,7 @@
     <b>Shopee</b> (oficial, vendedor CNPJ — confirmado no Centro de Educação do Vendedor Shopee, mai/2026): &lt;R$8 = 50% do valor (regra especial) · R$8–79,99 = 20%+R$4 · R$80–99,99 = 14%+R$16 · R$100–199,99 = 14%+R$20 · ≥R$200 = 14%+R$26 (teto de R$100 removido em fev/2026; o Subsídio Pix de 5–8% é descontado do comprador, não afeta seu repasse). O campo "comissão afiliado extra" soma por cima dessa base.<br>
     <b>TikTok Shop</b> (oficial, Seller University, vigente desde 15/jul/2026): produtos &lt;R$50 = 10%+R$4 fixo · produtos ≥R$50 = 6%+R$6 fixo por item. Frete Grátis soma +6% fixo, independente da faixa. Taxas incidem sobre o preço já com desconto do vendedor.<br>
     <b>Mercado Livre:</b> comissão por categoria — Clássico 10–14%, Premium 15–19% (confira a categoria exata no seller center). Desde mar/2026 o antigo custo fixo de baixo valor virou uma matriz de peso × faixa de preço (232 combinações, válida a partir de R$19) — o campo "custo operacional" é só uma referência editável; use o Simulador de Custos do ML para o valor exato do seu produto.<br>
+    <b>Nuvemshop (Nuvem Pago, oficial — atualizado 23/jul/2026):</b> não há comissão de venda ao usar o Nuvem Pago (tarifa por venda é gratuita nesse caso). Cartão de crédito = taxa por plano contratado + prazo de recebimento (Começo 4,69–5,69% · Essencial 4,19–5,19% · Impulso 3,69–4,69% · Escala 3,29–3,99%, do prazo mais longo pro mais curto) + R$0,35 fixo por venda. PIX = 0,99% fixo, sem taxa adicional. Boleto = R$2,39 fixo, sem %. Parcelamento sem juros tem taxa própria (não incluída aqui) só quando o lojista assume o custo.<br>
     "Veredito" compara a margem líquida no preço informado com a margem alvo definida acima. Sem preço informado, mostra apenas o preço mínimo necessário.
   </div>
 </div>
@@ -475,8 +506,18 @@ function feeTikTok(price, freeShipping, freeShipPct){
   if (freeShipping) return {pct: base.pct + (freeShipPct||0)/100, fixed: base.fixed};
   return base;
 }
-function feeOwn(gatewayPct){
-  return {pct: gatewayPct/100, fixed:0};
+// Nuvem Pago — taxa de transação de cartão por plano x prazo de recebimento (oficial, atualizado 23/jul/2026)
+const NUVEMPAGO_CARD_FEES = {
+  comeco:    {30:4.69, 14:5.19, 2:5.69},
+  essencial: {30:4.19, 14:4.69, 2:5.19},
+  impulso:   {30:3.69, 14:4.19, 2:4.69},
+  escala:    {30:3.29, 14:3.69, 2:3.99},
+};
+function feeOwn(method, plano, prazo){
+  if (method === 'pix') return {pct: 0.99/100, fixed: 0};
+  if (method === 'boleto') return {pct: 0, fixed: 2.39};
+  const pct = (NUVEMPAGO_CARD_FEES[plano] || NUVEMPAGO_CARD_FEES.essencial)[prazo] ?? NUVEMPAGO_CARD_FEES.essencial[2];
+  return {pct: pct/100, fixed: 0.35};
 }
 
 function minPrice(cost, marginPct, taxPct, feeFn){
@@ -515,7 +556,9 @@ function render(){
   const mlClassicoPct = num('mlClassico');
   const mlPremiumPct = num('mlPremium');
   const mlFixed = num('mlFixed');
-  const ownGateway = num('ownGateway');
+  const ownMethod = document.getElementById('ownMethod').value;
+  const ownPlano = document.getElementById('ownPlano').value;
+  const ownPrazo = document.getElementById('ownPrazo').value;
   const shopeeAffiliate = num('shopeeAffiliate');
   const tiktokFreeShip = document.getElementById('tiktokFreeShip').checked;
   const tiktokFreeShipPct = num('tiktokFreeShipPct');
@@ -525,7 +568,7 @@ function render(){
     { name:'Mercado Livre', sub:'Clássico', feeFn:(p)=>feeML(p, mlClassicoPct, mlFixed) },
     { name:'Mercado Livre', sub:'Premium', feeFn:(p)=>feeML(p, mlPremiumPct, mlFixed) },
     { name:'TikTok Shop', sub: tiktokFreeShip ? 'Frete Grátis' : 'padrão', feeFn:(p)=>feeTikTok(p, tiktokFreeShip, tiktokFreeShipPct) },
-    { name:'Loja própria', sub:'Nuvemshop', feeFn:(p)=>feeOwn(ownGateway) },
+    { name:'Loja própria', sub:'Nuvemshop · ' + (ownMethod==='cartao' ? 'Cartão' : ownMethod==='pix' ? 'PIX' : 'Boleto'), feeFn:(p)=>feeOwn(ownMethod, ownPlano, ownPrazo) },
   ];
 
   let rows = platforms.map(pl => {
@@ -627,6 +670,19 @@ document.querySelectorAll('input').forEach(el => {
   el.addEventListener('input', render);
   el.addEventListener('change', render);
 });
+
+document.querySelectorAll('select').forEach(el => {
+  el.addEventListener('change', render);
+});
+
+function updateOwnMethodFields(){
+  const method = document.getElementById('ownMethod').value;
+  const showPlanoPrazo = method === 'cartao';
+  document.getElementById('ownPlanoField').style.display = showPlanoPrazo ? '' : 'none';
+  document.getElementById('ownPrazoField').style.display = showPlanoPrazo ? '' : 'none';
+}
+document.getElementById('ownMethod').addEventListener('change', updateOwnMethodFields);
+updateOwnMethodFields();
 
 document.querySelectorAll('#weightUnitToggle .unit-btn').forEach(btn => {
   btn.addEventListener('click', () => {
