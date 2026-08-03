@@ -116,23 +116,28 @@
   /* Inputs */
   .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px;}
   label{display:block; font-size:12px; color:var(--text-dim); margin-bottom:7px; letter-spacing:.01em;}
-  .input-wrap{position:relative;}
+  .input-wrap{
+    display:flex; align-items:stretch; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:var(--r-sm); transition:border-color .15s ease, background .15s ease, box-shadow .15s ease;
+  }
+  .input-wrap:hover{border-color:#3a3f48;}
+  .input-wrap:focus-within{border-color:var(--accent); background:var(--surface-3); box-shadow:0 0 0 3px var(--accent-soft);}
   .input-wrap .prefix, .input-wrap .suffix{
-    position:absolute; top:50%; transform:translateY(-50%); color:var(--muted);
-    font-family:var(--font-mono); font-size:13.5px; pointer-events:none;
+    display:flex; align-items:center; color:var(--muted);
+    font-family:var(--font-mono); font-size:13.5px; white-space:nowrap; pointer-events:none;
   }
-  .input-wrap .prefix{left:12px;}
-  .input-wrap .suffix{right:12px;}
-  .input-wrap.has-prefix input{padding-left:34px;}
-  .input-wrap.has-suffix input{padding-right:30px;}
+  .input-wrap .prefix{padding-left:12px; padding-right:6px;}
+  .input-wrap .suffix{padding-right:12px; padding-left:6px;}
   input[type=number]{
-    width:100%; background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+    flex:1 1 auto; width:100%; min-width:0; background:transparent; border:none; color:var(--text);
     padding:11px 12px; border-radius:var(--r-sm); font-size:15px; font-family:var(--font-mono);
-    transition:border-color .15s ease, background .15s ease;
   }
+  .input-wrap.has-prefix input{padding-left:0;}
+  .input-wrap.has-suffix input{padding-right:0;}
   input[type=number]::placeholder{color:var(--muted); font-family:var(--font-display); font-size:12.5px;}
-  input[type=number]:hover{border-color:#3a3f48;}
-  input[type=number]:focus{outline:none; border-color:var(--accent); background:var(--surface-3); box-shadow:0 0 0 3px var(--accent-soft);}
+  input[type=number]:focus{outline:none;}
+  input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none; margin:0;}
+  input[type=number]{-moz-appearance:textfield;}
   .field{margin-bottom:2px;}
   .hint{font-size:11.5px; color:var(--muted); margin-top:6px; line-height:1.5;}
 
@@ -272,7 +277,7 @@
           <label>Preço do filamento</label>
           <div class="input-wrap has-prefix">
             <span class="prefix">R$/kg</span>
-            <input type="number" id="filPrice" step="1" value="120" style="padding-left:50px;">
+            <input type="number" id="filPrice" step="1" value="120">
           </div>
         </div>
         <div class="field">
@@ -286,7 +291,7 @@
           <label>Custo hora-máquina</label>
           <div class="input-wrap has-prefix">
             <span class="prefix">R$/h</span>
-            <input type="number" id="machineRate" step="0.5" placeholder="0" style="padding-left:42px;">
+            <input type="number" id="machineRate" step="0.5" placeholder="0">
           </div>
         </div>
         <div class="field">
