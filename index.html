@@ -28,6 +28,9 @@
   }
   input[type=number]:focus{outline:none; border-color:var(--accent);}
   .field{margin-bottom:2px;}
+  .checkfield{display:flex; align-items:center; gap:8px; margin-top:26px;}
+  .checkfield input[type=checkbox]{width:16px; height:16px; accent-color:var(--accent);}
+  .checkfield label{margin:0; color:var(--text); font-size:13.5px; cursor:pointer;}
   .hint{font-size:11px; color:var(--muted); margin-top:4px; line-height:1.4;}
   details{margin-top:6px;}
   summary{cursor:pointer; color:var(--accent); font-size:13px; margin:8px 0;}
@@ -106,6 +109,11 @@
     <h2>Parâmetros das plataformas</h2>
     <div class="grid">
       <div class="field">
+        <label>Shopee — comissão afiliado extra (%)</label>
+        <input type="number" id="shopeeAffiliate" step="0.1" value="0">
+        <div class="hint">Opcional. Some por cima da tabela por faixa de preço se você rodar afiliado nesse anúncio.</div>
+      </div>
+      <div class="field">
         <label>ML Clássico — comissão (%)</label>
         <input type="number" id="mlClassico" step="0.1" value="13">
       </div>
@@ -117,6 +125,14 @@
         <label>ML taxa fixa venda &lt; R$79 (R$)</label>
         <input type="number" id="mlFixed" step="0.1" value="6.50">
         <div class="hint">Desde mar/2026 essa taxa é calculada por peso/dimensão do pacote no seller center do ML — R$6,50 é a estimativa anterior, ajuste se souber o valor real do seu produto.</div>
+      </div>
+      <div class="field">
+        <label>TikTok — Frete Grátis, taxa adicional (%)</label>
+        <input type="number" id="tiktokFreeShipPct" step="0.1" value="6">
+      </div>
+      <div class="checkfield">
+        <input type="checkbox" id="tiktokFreeShip">
+        <label for="tiktokFreeShip">TikTok Shop — ativar Programa Frete Grátis</label>
       </div>
       <div class="field">
         <label>Loja própria — taxa gateway (%)</label>
@@ -137,8 +153,8 @@
   </div>
 
   <div class="footer-note">
-    Shopee: tabela por faixa de preço (sem afiliado) — ≤R$79,99 = 20%+R$4 · R$80–99,99 = 14%+R$16 · R$100–199,99 = 14%+R$20 · ≥R$200 = 14%+R$26 (teto de R$100 removido em fev/2026).<br>
-    TikTok Shop (regras de jul/2026): produtos &lt;R$50 = 10% · produtos ≥R$50 = 6%+R$6 fixo por item. Frete Grátis soma +6% ao adotar o programa.<br>
+    Shopee: tabela por faixa de preço (base, sem afiliado) — ≤R$79,99 = 20%+R$4 · R$80–99,99 = 14%+R$16 · R$100–199,99 = 14%+R$20 · ≥R$200 = 14%+R$26 (teto de R$100 removido em fev/2026). O campo "comissão afiliado extra" soma por cima dessa base.<br>
+    TikTok Shop (regras de jul/2026): produtos &lt;R$50 = 10% · produtos ≥R$50 = 6%+R$6 fixo por item. Marque o Frete Grátis acima para somar a taxa adicional configurada.<br>
     Mercado Livre: comissão varia por categoria — os % acima são médias de referência (Clássico/Premium), confira a categoria do seu produto no seller center para o valor exato.<br>
     "Veredito" compara a margem líquida no preço informado com a margem alvo definida acima. Sem preço informado, a tabela mostra apenas o preço mínimo necessário.
   </div>
@@ -166,18 +182,20 @@ function updateCostPreview(){
 }
 
 // fee = { pct, fixed }
-function feeShopee(price){
-  if (price <= 79.99) return {pct:0.20, fixed:4};
-  if (price <= 99.99) return {pct:0.14, fixed:16};
-  if (price <= 199.99) return {pct:0.14, fixed:20};
-  return {pct:0.14, fixed:26};
+function feeShopee(price, affiliatePct){
+  let tier;
+  if (price <= 79.99) tier = {pct:0.20, fixed:4};
+  else if (price <= 99.99) tier = {pct:0.14, fixed:16};
+  else if (price <= 199.99) tier = {pct:0.14, fixed:20};
+  else tier = {pct:0.14, fixed:26};
+  return {pct: tier.pct + (affiliatePct||0)/100, fixed: tier.fixed};
 }
 function feeML(price, pct, fixed){
   return {pct: pct/100, fixed: price < 79 ? fixed : 0};
 }
-function feeTikTok(price, freeShipping){
+function feeTikTok(price, freeShipping, freeShipPct){
   const base = price < 50 ? {pct:0.10, fixed:0} : {pct:0.06, fixed:6};
-  if (freeShipping) return {pct: base.pct + 0.06, fixed: base.fixed};
+  if (freeShipping) return {pct: base.pct + (freeShipPct||0)/100, fixed: base.fixed};
   return base;
 }
 function feeOwn(gatewayPct){
@@ -221,13 +239,15 @@ function render(){
   const mlPremiumPct = num('mlPremium');
   const mlFixed = num('mlFixed');
   const ownGateway = num('ownGateway');
+  const shopeeAffiliate = num('shopeeAffiliate');
+  const tiktokFreeShip = document.getElementById('tiktokFreeShip').checked;
+  const tiktokFreeShipPct = num('tiktokFreeShipPct');
 
   const platforms = [
-    { name:'Shopee', sub:'sem afiliado', feeFn:(p)=>feeShopee(p) },
+    { name:'Shopee', sub: shopeeAffiliate > 0 ? `com afiliado (+${shopeeAffiliate}%)` : 'sem afiliado', feeFn:(p)=>feeShopee(p, shopeeAffiliate) },
     { name:'Mercado Livre', sub:'Clássico', feeFn:(p)=>feeML(p, mlClassicoPct, mlFixed) },
     { name:'Mercado Livre', sub:'Premium', feeFn:(p)=>feeML(p, mlPremiumPct, mlFixed) },
-    { name:'TikTok Shop', sub:'padrão', feeFn:(p)=>feeTikTok(p, false) },
-    { name:'TikTok Shop', sub:'Frete Grátis', feeFn:(p)=>feeTikTok(p, true) },
+    { name:'TikTok Shop', sub: tiktokFreeShip ? 'Frete Grátis' : 'padrão', feeFn:(p)=>feeTikTok(p, tiktokFreeShip, tiktokFreeShipPct) },
     { name:'Loja própria', sub:'Nuvemshop', feeFn:(p)=>feeOwn(ownGateway) },
   ];
 
@@ -283,7 +303,10 @@ function render(){
     : '';
 }
 
-document.querySelectorAll('input').forEach(el => el.addEventListener('input', render));
+document.querySelectorAll('input').forEach(el => {
+  el.addEventListener('input', render);
+  el.addEventListener('change', render);
+});
 render();
 </script>
 </body>
