@@ -207,6 +207,7 @@
   .platform small{display:block; font-weight:400; color:var(--muted); font-size:11px; margin-top:2px;}
   .platform .star{color:var(--accent); font-size:11px; font-weight:700; margin-left:6px;}
   .num{font-variant-numeric:tabular-nums; font-family:var(--font-mono); color:var(--text-dim);}
+  .num.effective-pct{color:var(--text); font-weight:700;}
   .badge{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:99px; font-size:11.5px; font-weight:600;}
   .badge .dot{width:6px; height:6px; border-radius:50%; display:inline-block;}
   .badge.ok{background:var(--accent-soft); color:var(--accent);} .badge.ok .dot{background:var(--accent);}
@@ -356,7 +357,7 @@
     <div class="table-scroll">
       <table>
         <thead>
-          <tr><th>Plataforma</th><th>Taxa aplicada</th><th>Preço mínimo</th><th>Margem no preço informado</th><th>Veredito</th></tr>
+          <tr><th>Plataforma</th><th>Taxa aplicada</th><th>Taxa efetiva</th><th>Preço mínimo</th><th>Margem no preço informado</th><th>Veredito</th></tr>
         </thead>
         <tbody id="resultsBody"></tbody>
       </table>
@@ -529,10 +530,12 @@ function render(){
 
   let rows = platforms.map(pl => {
     const minP = minPrice(cost, marginTarget, tax, pl.feeFn);
-    let marginAtInformed = null, feeLabel = '—', verdictHtml = '<span class="muted-cell">informe um preço</span>';
+    let marginAtInformed = null, feeLabel = '—', verdictHtml = '<span class="muted-cell">informe um preço</span>', effectivePct = null;
     if (minP !== null){
       const feeAtMin = pl.feeFn(minP);
       feeLabel = (feeAtMin.pct*100).toFixed(1) + '% + R$' + feeAtMin.fixed.toFixed(2);
+      const feeAmountAtMin = minP*feeAtMin.pct + feeAtMin.fixed;
+      effectivePct = minP > 0 ? (feeAmountAtMin/minP)*100 : null;
     } else {
       feeLabel = 'inviável';
     }
@@ -540,6 +543,7 @@ function render(){
       const m = marginAtPrice(cost, price, tax, pl.feeFn);
       marginAtInformed = m.marginPct;
       feeLabel = (m.pct*100).toFixed(1) + '% + R$' + m.fixed.toFixed(2);
+      effectivePct = (m.feeAmount/price)*100;
       if (m.marginPct === null){
         verdictHtml = '—';
       } else if (m.marginPct >= marginTarget){
@@ -550,7 +554,7 @@ function render(){
         verdictHtml = '<span class="badge bad"><span class="dot"></span>Prejuízo</span>';
       }
     }
-    return { pl, minP, marginAtInformed, feeLabel, verdictHtml };
+    return { pl, minP, marginAtInformed, feeLabel, verdictHtml, effectivePct };
   });
 
   // find best
@@ -568,6 +572,7 @@ function render(){
     <tr class="${i===bestIdx ? 'best' : ''}">
       <td class="platform">${r.pl.name}${i===bestIdx ? '<span class="star">★ melhor</span>' : ''}<small>${r.pl.sub}</small></td>
       <td class="num">${r.feeLabel}</td>
+      <td class="num effective-pct">${fmtPct(r.effectivePct)}</td>
       <td class="num">${fmtR(r.minP)}</td>
       <td class="num">${fmtPct(r.marginAtInformed)}</td>
       <td>${r.verdictHtml}</td>
