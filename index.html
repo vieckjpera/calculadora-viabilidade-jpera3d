@@ -126,6 +126,17 @@
     display:flex; align-items:center; color:var(--muted);
     font-family:var(--font-mono); font-size:13.5px; white-space:nowrap; pointer-events:none;
   }
+  .unit-toggle{
+    display:flex; align-items:center; gap:2px; padding:4px; flex-shrink:0;
+  }
+  .unit-btn{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:.02em; color:var(--muted);
+    background:transparent; border:1px solid transparent; border-radius:6px; padding:4px 8px;
+    cursor:pointer; transition:background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .unit-btn:hover{color:var(--text-dim);}
+  .unit-btn.active{background:var(--accent-soft); color:var(--accent); border-color:rgba(200,255,77,.35);}
+  .unit-btn:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
   .input-wrap .prefix{padding-left:12px; padding-right:6px;}
   .input-wrap .suffix{padding-right:12px; padding-left:6px;}
   input[type=number]{
@@ -236,9 +247,13 @@
     <div class="grid">
       <div class="field">
         <label>Peso do filamento</label>
-        <div class="input-wrap has-suffix">
+        <div class="input-wrap">
           <input type="number" id="weight" step="1" placeholder="ex: 35">
-          <span class="suffix">g</span>
+          <input type="hidden" id="weightUnit" value="g">
+          <div class="unit-toggle" id="weightUnitToggle">
+            <button type="button" class="unit-btn active" data-unit="g">g</button>
+            <button type="button" class="unit-btn" data-unit="kg">kg</button>
+          </div>
         </div>
       </div>
       <div class="field">
@@ -413,7 +428,9 @@ function num(id){ const v = parseFloat(document.getElementById(id).value); retur
 
 function calcBreakdownCost(){
   const w = num('weight'), fp = num('filPrice'), pt = num('printTime'), mr = num('machineRate'), extra = num('extraCost');
-  const materialCost = (w/1000) * fp;
+  const weightUnit = document.getElementById('weightUnit').value;
+  const weightKg = weightUnit === 'kg' ? w : w/1000;
+  const materialCost = weightKg * fp;
   const machineCost = (pt/60) * mr;
   return materialCost + machineCost + extra;
 }
@@ -593,6 +610,18 @@ document.querySelectorAll('input').forEach(el => {
   el.addEventListener('input', render);
   el.addEventListener('change', render);
 });
+
+document.querySelectorAll('#weightUnitToggle .unit-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const unit = btn.dataset.unit;
+    document.getElementById('weightUnit').value = unit;
+    document.querySelectorAll('#weightUnitToggle .unit-btn').forEach(b => b.classList.toggle('active', b === btn));
+    const weightInput = document.getElementById('weight');
+    weightInput.placeholder = unit === 'kg' ? 'ex: 0,035' : 'ex: 35';
+    render();
+  });
+});
+
 render();
 </script>
 </body>
