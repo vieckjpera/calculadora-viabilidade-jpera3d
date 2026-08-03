@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Viabilidade — JPERA3D</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --card2:#1e222b; --border:#2a2f3a;
+    --text:#e8e9ec; --muted:#9199a8; --accent:#7c9eff;
+    --green:#3ecf8e; --yellow:#e8b74b; --red:#e8555a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--text); padding:24px 16px 60px;
+  }
+  .wrap{max-width:920px; margin:0 auto;}
+  h1{font-size:22px; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:14px; margin-bottom:24px;}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px; margin-bottom:18px;}
+  .card h2{font-size:15px; margin:0 0 14px; color:var(--accent); text-transform:uppercase; letter-spacing:.03em;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px;}
+  label{display:block; font-size:12.5px; color:var(--muted); margin-bottom:5px;}
+  input[type=number]{
+    width:100%; background:var(--card2); border:1px solid var(--border); color:var(--text);
+    padding:9px 10px; border-radius:8px; font-size:14.5px;
+  }
+  input[type=number]:focus{outline:none; border-color:var(--accent);}
+  .field{margin-bottom:2px;}
+  .hint{font-size:11px; color:var(--muted); margin-top:4px; line-height:1.4;}
+  details{margin-top:6px;}
+  summary{cursor:pointer; color:var(--accent); font-size:13px; margin:8px 0;}
+  .detail-grid{margin-top:12px; padding-top:12px; border-top:1px dashed var(--border);}
+  .costOut{font-size:13px; color:var(--muted); margin-top:8px;}
+  .costOut b{color:var(--text);}
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  th,td{padding:10px 8px; text-align:left; border-bottom:1px solid var(--border);}
+  th{color:var(--muted); font-weight:500; font-size:12px; text-transform:uppercase; letter-spacing:.02em;}
+  tr.best td{background:rgba(124,158,255,.07);}
+  .badge{display:inline-block; padding:3px 9px; border-radius:20px; font-size:12px; font-weight:600;}
+  .badge.ok{background:rgba(62,207,142,.15); color:var(--green);}
+  .badge.low{background:rgba(232,183,75,.15); color:var(--yellow);}
+  .badge.bad{background:rgba(232,85,90,.15); color:var(--red);}
+  .platform{font-weight:600;}
+  .platform small{display:block; font-weight:400; color:var(--muted); font-size:11px;}
+  .num{font-variant-numeric:tabular-nums;}
+  .footer-note{color:var(--muted); font-size:11.5px; margin-top:18px; line-height:1.6;}
+  .refresh{font-size:12px; color:var(--muted); margin-top:2px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Calculadora de Viabilidade de Produto</h1>
+  <div class="sub">JPERA3D — compara Shopee, Mercado Livre, TikTok Shop e loja própria de uma vez. Preencha o custo e (opcionalmente) o preço que pretende praticar.</div>
+
+  <div class="card">
+    <h2>Custo &amp; Meta</h2>
+    <div class="grid">
+      <div class="field">
+        <label>Custo do produto (R$)</label>
+        <input type="number" id="cost" step="0.01" value="15.00">
+      </div>
+      <div class="field">
+        <label>Preço de venda pretendido (R$) — opcional</label>
+        <input type="number" id="price" step="0.01" placeholder="deixe em branco p/ só ver preço mínimo">
+      </div>
+      <div class="field">
+        <label>Margem líquida alvo (%)</label>
+        <input type="number" id="marginTarget" step="0.1" value="20">
+      </div>
+      <div class="field">
+        <label>Simples Nacional (%)</label>
+        <input type="number" id="tax" step="0.1" value="5.6">
+      </div>
+    </div>
+    <details>
+      <summary>Detalhar custo por material / impressão (opcional)</summary>
+      <div class="detail-grid grid">
+        <div class="field">
+          <label>Peso do filamento (g)</label>
+          <input type="number" id="weight" step="1" placeholder="0">
+        </div>
+        <div class="field">
+          <label>Preço do filamento (R$/kg)</label>
+          <input type="number" id="filPrice" step="1" value="120">
+        </div>
+        <div class="field">
+          <label>Tempo de impressão (min)</label>
+          <input type="number" id="printTime" step="1" placeholder="0">
+        </div>
+        <div class="field">
+          <label>Custo hora-máquina (R$/h)</label>
+          <input type="number" id="machineRate" step="0.5" placeholder="0">
+        </div>
+        <div class="field">
+          <label>Outros custos (embalagem, etc — R$)</label>
+          <input type="number" id="extraCost" step="0.5" placeholder="0">
+        </div>
+      </div>
+      <div class="costOut">Custo calculado: <b id="calcCostOut">—</b> <button onclick="applyCalcCost()" style="margin-left:8px; background:var(--card2); border:1px solid var(--border); color:var(--accent); border-radius:6px; padding:4px 10px; font-size:12px; cursor:pointer;">usar este valor ↑</button></div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>Parâmetros das plataformas</h2>
+    <div class="grid">
+      <div class="field">
+        <label>ML Clássico — comissão (%)</label>
+        <input type="number" id="mlClassico" step="0.1" value="13">
+      </div>
+      <div class="field">
+        <label>ML Premium — comissão (%)</label>
+        <input type="number" id="mlPremium" step="0.1" value="17">
+      </div>
+      <div class="field">
+        <label>ML taxa fixa venda &lt; R$79 (R$)</label>
+        <input type="number" id="mlFixed" step="0.1" value="6.50">
+        <div class="hint">Desde mar/2026 essa taxa é calculada por peso/dimensão do pacote no seller center do ML — R$6,50 é a estimativa anterior, ajuste se souber o valor real do seu produto.</div>
+      </div>
+      <div class="field">
+        <label>Loja própria — taxa gateway (%)</label>
+        <input type="number" id="ownGateway" step="0.1" value="5">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Comparativo entre plataformas</h2>
+    <table>
+      <thead>
+        <tr><th>Plataforma</th><th>Taxa aplicada</th><th>Preço mínimo p/ margem alvo</th><th>Margem no preço informado</th><th>Veredito</th></tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+    <div class="refresh" id="refreshNote"></div>
+  </div>
+
+  <div class="footer-note">
+    Shopee: tabela por faixa de preço (sem afiliado) — ≤R$79,99 = 20%+R$4 · R$80–99,99 = 14%+R$16 · R$100–199,99 = 14%+R$20 · ≥R$200 = 14%+R$26 (teto de R$100 removido em fev/2026).<br>
+    TikTok Shop (regras de jul/2026): produtos &lt;R$50 = 10% · produtos ≥R$50 = 6%+R$6 fixo por item. Frete Grátis soma +6% ao adotar o programa.<br>
+    Mercado Livre: comissão varia por categoria — os % acima são médias de referência (Clássico/Premium), confira a categoria do seu produto no seller center para o valor exato.<br>
+    "Veredito" compara a margem líquida no preço informado com a margem alvo definida acima. Sem preço informado, a tabela mostra apenas o preço mínimo necessário.
+  </div>
+</div>
+
+<script>
+function num(id){ const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? 0 : v; }
+
+function calcBreakdownCost(){
+  const w = num('weight'), fp = num('filPrice'), pt = num('printTime'), mr = num('machineRate'), extra = num('extraCost');
+  const materialCost = (w/1000) * fp;
+  const machineCost = (pt/60) * mr;
+  return materialCost + machineCost + extra;
+}
+
+function applyCalcCost(){
+  const c = calcBreakdownCost();
+  document.getElementById('cost').value = c.toFixed(2);
+  render();
+}
+
+function updateCostPreview(){
+  const c = calcBreakdownCost();
+  document.getElementById('calcCostOut').textContent = 'R$ ' + c.toFixed(2);
+}
+
+// fee = { pct, fixed }
+function feeShopee(price){
+  if (price <= 79.99) return {pct:0.20, fixed:4};
+  if (price <= 99.99) return {pct:0.14, fixed:16};
+  if (price <= 199.99) return {pct:0.14, fixed:20};
+  return {pct:0.14, fixed:26};
+}
+function feeML(price, pct, fixed){
+  return {pct: pct/100, fixed: price < 79 ? fixed : 0};
+}
+function feeTikTok(price, freeShipping){
+  const base = price < 50 ? {pct:0.10, fixed:0} : {pct:0.06, fixed:6};
+  if (freeShipping) return {pct: base.pct + 0.06, fixed: base.fixed};
+  return base;
+}
+function feeOwn(gatewayPct){
+  return {pct: gatewayPct/100, fixed:0};
+}
+
+function minPrice(cost, marginPct, taxPct, feeFn){
+  let price = cost > 0 ? cost * 1.5 : 10;
+  for (let i=0;i<40;i++){
+    const {pct, fixed} = feeFn(price);
+    const denom = 1 - marginPct/100 - taxPct/100 - pct;
+    if (denom <= 0.001) return null;
+    const newPrice = (cost + fixed) / denom;
+    if (Math.abs(newPrice - price) < 0.005){ price = newPrice; break; }
+    price = newPrice;
+    if (price > 1000000) return null;
+  }
+  return price;
+}
+
+function marginAtPrice(cost, price, taxPct, feeFn){
+  const {pct, fixed} = feeFn(price);
+  const feeAmount = price*pct + fixed;
+  const taxAmount = price*(taxPct/100);
+  const profit = price - cost - feeAmount - taxAmount;
+  const marginPct = price > 0 ? (profit/price)*100 : null;
+  return {feeAmount, taxAmount, profit, marginPct, pct, fixed};
+}
+
+function fmtR(v){ return v === null || v === undefined || isNaN(v) ? '—' : 'R$ ' + v.toFixed(2); }
+function fmtPct(v){ return v === null || v === undefined || isNaN(v) ? '—' : v.toFixed(1) + '%'; }
+
+function render(){
+  updateCostPreview();
+  const cost = num('cost');
+  const priceInput = document.getElementById('price').value;
+  const price = priceInput === '' ? null : num('price');
+  const marginTarget = num('marginTarget');
+  const tax = num('tax');
+  const mlClassicoPct = num('mlClassico');
+  const mlPremiumPct = num('mlPremium');
+  const mlFixed = num('mlFixed');
+  const ownGateway = num('ownGateway');
+
+  const platforms = [
+    { name:'Shopee', sub:'sem afiliado', feeFn:(p)=>feeShopee(p) },
+    { name:'Mercado Livre', sub:'Clássico', feeFn:(p)=>feeML(p, mlClassicoPct, mlFixed) },
+    { name:'Mercado Livre', sub:'Premium', feeFn:(p)=>feeML(p, mlPremiumPct, mlFixed) },
+    { name:'TikTok Shop', sub:'padrão', feeFn:(p)=>feeTikTok(p, false) },
+    { name:'TikTok Shop', sub:'Frete Grátis', feeFn:(p)=>feeTikTok(p, true) },
+    { name:'Loja própria', sub:'Nuvemshop', feeFn:(p)=>feeOwn(ownGateway) },
+  ];
+
+  let rows = platforms.map(pl => {
+    const minP = minPrice(cost, marginTarget, tax, pl.feeFn);
+    let marginAtInformed = null, feeLabel = '—', verdictHtml = '<span class="hint">informe um preço</span>';
+    if (minP !== null){
+      const feeAtMin = pl.feeFn(minP);
+      feeLabel = (feeAtMin.pct*100).toFixed(1) + '% + R$' + feeAtMin.fixed.toFixed(2);
+    } else {
+      feeLabel = 'inviável (taxas > 100%-alvo)';
+    }
+    if (price !== null && price > 0){
+      const m = marginAtPrice(cost, price, tax, pl.feeFn);
+      marginAtInformed = m.marginPct;
+      feeLabel = (m.pct*100).toFixed(1) + '% + R$' + m.fixed.toFixed(2);
+      if (m.marginPct === null){
+        verdictHtml = '—';
+      } else if (m.marginPct >= marginTarget){
+        verdictHtml = '<span class="badge ok">Viável</span>';
+      } else if (m.marginPct >= 0){
+        verdictHtml = '<span class="badge low">Abaixo da meta</span>';
+      } else {
+        verdictHtml = '<span class="badge bad">Prejuízo</span>';
+      }
+    }
+    return { pl, minP, marginAtInformed, feeLabel, verdictHtml };
+  });
+
+  // find best (lowest min price among viable, or highest margin at informed price)
+  let bestIdx = -1;
+  if (price !== null){
+    let bestMargin = -Infinity;
+    rows.forEach((r,i)=>{ if (r.marginAtInformed !== null && r.marginAtInformed > bestMargin){ bestMargin = r.marginAtInformed; bestIdx = i; } });
+  } else {
+    let bestMin = Infinity;
+    rows.forEach((r,i)=>{ if (r.minP !== null && r.minP < bestMin){ bestMin = r.minP; bestIdx = i; } });
+  }
+
+  const tbody = document.getElementById('resultsBody');
+  tbody.innerHTML = rows.map((r,i) => `
+    <tr class="${i===bestIdx ? 'best' : ''}">
+      <td class="platform">${r.pl.name}<small>${r.pl.sub}</small></td>
+      <td class="num">${r.feeLabel}</td>
+      <td class="num">${fmtR(r.minP)}</td>
+      <td class="num">${fmtPct(r.marginAtInformed)}</td>
+      <td>${r.verdictHtml}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('refreshNote').textContent = bestIdx >= 0
+    ? `Melhor opção agora: ${rows[bestIdx].pl.name} (${rows[bestIdx].pl.sub}).`
+    : '';
+}
+
+document.querySelectorAll('input').forEach(el => el.addEventListener('input', render));
+render();
+</script>
+</body>
+</html>
