@@ -162,6 +162,17 @@
   select:focus{outline:none; border-color:var(--accent); background-color:var(--surface-3); box-shadow:0 0 0 3px var(--accent-soft);}
   select:focus-visible{outline:none;}
   .field.sub-field{margin-top:10px;}
+  .save-btn{
+    margin-top:16px; background:var(--accent); color:#0a0b0d; border:none; font-weight:700;
+    font-family:var(--font-display); font-size:14px; padding:12px 22px; border-radius:var(--r-sm);
+    cursor:pointer; transition:opacity .15s ease, transform .1s ease;
+  }
+  .save-btn:hover{opacity:.9;}
+  .save-btn:active{transform:scale(.98);}
+  .save-btn:disabled{opacity:.5; cursor:not-allowed;}
+  .save-status{margin-top:10px; font-size:12.5px; font-family:var(--font-mono); min-height:16px;}
+  .save-status.ok{color:var(--accent);}
+  .save-status.error{color:var(--danger);}
 
   details{margin-top:14px;}
   summary{
@@ -376,6 +387,20 @@
     <div class="refresh" id="refreshNote"></div>
   </div>
 
+  <div class="card" id="saveCard">
+    <h2>Salvar este cálculo</h2>
+    <div class="grid">
+      <div class="field" style="grid-column:1/-1;">
+        <label>Nome do produto</label>
+        <div class="input-wrap">
+          <input type="text" id="productName" placeholder="ex: Sapateira de parede com gancho">
+        </div>
+      </div>
+    </div>
+    <button type="button" class="save-btn" id="saveBtn">Salvar cálculo</button>
+    <div class="save-status" id="saveStatus"></div>
+  </div>
+
   <details class="card params-card">
     <summary>Parâmetros das plataformas (avançado)</summary>
     <div class="params-body grid">
@@ -496,9 +521,6 @@ function feeShopee(price, affiliatePct){
   return {pct: tier.pct + (affiliatePct||0)/100, fixed: tier.fixed};
 }
 function feeML(price, pct, fixed){
-  // Desde mar/2026 o custo operacional variável (peso x faixa de preço, 232 combinações)
-  // substituiu a antiga taxa fixa de baixo valor e passou a valer de forma ampla (a partir de R$19).
-  // Não dá para replicar a matriz oficial aqui — o campo é um valor manual de referência.
   return {pct: pct/100, fixed: fixed};
 }
 function feeTikTok(price, freeShipping, freeShipPct){
@@ -506,7 +528,6 @@ function feeTikTok(price, freeShipping, freeShipPct){
   if (freeShipping) return {pct: base.pct + (freeShipPct||0)/100, fixed: base.fixed};
   return base;
 }
-// Nuvem Pago — taxa de transação de cartão por plano x prazo de recebimento (oficial, atualizado 23/jul/2026)
 const NUVEMPAGO_CARD_FEES = {
   comeco:    {30:4.69, 14:5.19, 2:5.69},
   essencial: {30:4.19, 14:4.69, 2:5.19},
@@ -600,7 +621,6 @@ function render(){
     return { pl, minP, marginAtInformed, feeLabel, verdictHtml, effectivePct };
   });
 
-  // find best
   let bestIdx = -1;
   if (price !== null){
     let bestMargin = -Infinity;
@@ -626,7 +646,6 @@ function render(){
     ? `Melhor opção agora: ${rows[bestIdx].pl.name} (${rows[bestIdx].pl.sub}).`
     : '';
 
-  // Hero
   const hero = document.getElementById('hero');
   const heroNumber = document.getElementById('heroNumber');
   const heroDesc = document.getElementById('heroDesc');
@@ -683,6 +702,147 @@ function updateOwnMethodFields(){
 }
 document.getElementById('ownMethod').addEventListener('change', updateOwnMethodFields);
 updateOwnMethodFields();
+
+// --- Salvar cálculo no Supabase (viability_checks) ---
+const SUPABASE_URL = 'https://tfyvqhhlhcjjqajauyzb.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmeXZxaGhsaGNqanFhamF1eXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNjAxMjgsImV4cCI6MjA5MjYzNjEyOH0.jNuYQenDMYcPREJC7yIi7Ow44nwU2p-lEGScsDUogic';
+
+function buildViabilityPayload(productName){
+  const cost = effectiveCost();
+  const priceInput = document.getElementById('price').value;
+  const price = priceInput === '' ? null : num('price');
+  const marginTarget = num('marginTarget');
+  const tax = num('tax');
+  const mlClassicoPct = num('mlClassico');
+  const mlPremiumPct = num('mlPremium');
+  const mlFixed = num('mlFixed');
+  const ownMethod = document.getElementById('ownMethod').value;
+  const ownPlano = document.getElementById('ownPlano').value;
+  const ownPrazo = document.getElementById('ownPrazo').value;
+  const shopeeAffiliate = num('shopeeAffiliate');
+  const tiktokFreeShip = document.getElementById('tiktokFreeShip').checked;
+  const tiktokFreeShipPct = num('tiktokFreeShipPct');
+
+  const platforms = [
+    { name:'Shopee', sub: shopeeAffiliate > 0 ? `com afiliado (+${shopeeAffiliate}%)` : 'sem afiliado', feeFn:(p)=>feeShopee(p, shopeeAffiliate) },
+    { name:'Mercado Livre', sub:'Clássico', feeFn:(p)=>feeML(p, mlClassicoPct, mlFixed) },
+    { name:'Mercado Livre', sub:'Premium', feeFn:(p)=>feeML(p, mlPremiumPct, mlFixed) },
+    { name:'TikTok Shop', sub: tiktokFreeShip ? 'Frete Grátis' : 'padrão', feeFn:(p)=>feeTikTok(p, tiktokFreeShip, tiktokFreeShipPct) },
+    { name:'Loja própria', sub:'Nuvemshop · ' + (ownMethod==='cartao' ? 'Cartão' : ownMethod==='pix' ? 'PIX' : 'Boleto'), feeFn:(p)=>feeOwn(ownMethod, ownPlano, ownPrazo) },
+  ];
+
+  const platformsData = platforms.map(pl => {
+    const minP = minPrice(cost, marginTarget, tax, pl.feeFn);
+    let effectivePct = null, marginAtInformed = null;
+    if (minP !== null){
+      const feeAtMin = pl.feeFn(minP);
+      const feeAmountAtMin = minP*feeAtMin.pct + feeAtMin.fixed;
+      effectivePct = minP > 0 ? (feeAmountAtMin/minP)*100 : null;
+    }
+    if (price !== null && price > 0){
+      const m = marginAtPrice(cost, price, tax, pl.feeFn);
+      marginAtInformed = m.marginPct;
+      effectivePct = (m.feeAmount/price)*100;
+    }
+    return { name: pl.name, sub: pl.sub, minPrice: minP, effectivePct, marginAtInformed };
+  });
+
+  let bestIdx = -1;
+  if (price !== null){
+    let bestMargin = -Infinity;
+    platformsData.forEach((r,i)=>{ if (r.marginAtInformed !== null && r.marginAtInformed > bestMargin){ bestMargin = r.marginAtInformed; bestIdx = i; } });
+  } else {
+    let bestMin = Infinity;
+    platformsData.forEach((r,i)=>{ if (r.minPrice !== null && r.minPrice < bestMin){ bestMin = r.minPrice; bestIdx = i; } });
+  }
+  const best = bestIdx >= 0 ? platformsData[bestIdx] : null;
+
+  const weight = num('weight');
+  const weightUnit = document.getElementById('weightUnit').value;
+  const weightGrams = weightUnit === 'kg' ? weight*1000 : weight;
+  const printHours = num('printHours'), printMinutes = num('printMinutes');
+  const printTimeMinutes = printHours*60 + printMinutes;
+
+  let verdict;
+  if (price !== null){
+    verdict = (best && best.marginAtInformed !== null)
+      ? (best.marginAtInformed >= marginTarget ? 'viavel' : (best.marginAtInformed >= 0 ? 'abaixo_meta' : 'prejuizo'))
+      : 'inviavel';
+  } else {
+    verdict = best ? 'preco_minimo_calculado' : 'inviavel';
+  }
+
+  return {
+    productName,
+    weightGrams,
+    printTimeMinutes,
+    filamentPricePerKg: num('filPrice'),
+    machineRatePerHour: num('machineRate'),
+    extraCosts: num('extraCost'),
+    materialCost: (weightUnit==='kg' ? weight : weight/1000) * num('filPrice'),
+    machineCost: (printTimeMinutes/60) * num('machineRate'),
+    totalCost: cost,
+    marginTargetPercent: marginTarget,
+    taxPercent: tax,
+    priceInformed: price,
+    platforms: platformsData,
+    bestPlatformName: best ? best.name : null,
+    bestPlatformSub: best ? best.sub : null,
+    bestPrice: best ? (price !== null ? price : best.minPrice) : null,
+    verdict,
+    approved: true,
+  };
+}
+
+async function saveViabilityCheck(){
+  const btn = document.getElementById('saveBtn');
+  const statusEl = document.getElementById('saveStatus');
+  const productName = document.getElementById('productName').value.trim();
+
+  statusEl.className = 'save-status';
+  if (!productName){
+    statusEl.textContent = 'Informe o nome do produto antes de salvar.';
+    statusEl.className = 'save-status error';
+    return;
+  }
+  const cost = effectiveCost();
+  if (!(cost > 0)){
+    statusEl.textContent = 'Preencha os custos (ou o custo manual) antes de salvar.';
+    statusEl.className = 'save-status error';
+    return;
+  }
+
+  const payload = buildViabilityPayload(productName);
+
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/viability_checks`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok){
+      const txt = await res.text();
+      throw new Error(txt || res.statusText);
+    }
+    statusEl.textContent = '✓ Cálculo salvo com sucesso.';
+    statusEl.className = 'save-status ok';
+  } catch (err){
+    statusEl.textContent = 'Erro ao salvar: ' + err.message;
+    statusEl.className = 'save-status error';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Salvar cálculo';
+  }
+}
+
+document.getElementById('saveBtn').addEventListener('click', saveViabilityCheck);
 
 document.querySelectorAll('#weightUnitToggle .unit-btn').forEach(btn => {
   btn.addEventListener('click', () => {
