@@ -316,6 +316,39 @@
       </div>
     </div>
 
+    <div class="detail-grid grid">
+      <div class="field">
+        <label>&nbsp;</label>
+        <label class="toggle">
+          <input type="checkbox" id="laborToggle">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-text">Tem mão de obra manual envolvida?</span>
+        </label>
+        <div class="hint">Ex: acabamento, lixamento, montagem, pintura — qualquer trabalho manual além da impressão em si.</div>
+      </div>
+      <div class="field" id="laborRateField" style="display:none;">
+        <label>Mão de obra — custo</label>
+        <div class="input-wrap has-prefix">
+          <span class="prefix">R$/h</span>
+          <input type="number" id="laborRate" step="0.5" placeholder="ex: 20">
+        </div>
+      </div>
+      <div class="field" id="laborHoursField" style="display:none;">
+        <label>Mão de obra — horas</label>
+        <div class="input-wrap has-suffix">
+          <input type="number" id="laborHours" step="1" placeholder="ex: 0">
+          <span class="suffix">h</span>
+        </div>
+      </div>
+      <div class="field" id="laborMinutesField" style="display:none;">
+        <label>Mão de obra — minutos</label>
+        <div class="input-wrap has-suffix">
+          <input type="number" id="laborMinutesInput" step="1" placeholder="ex: 20">
+          <span class="suffix">min</span>
+        </div>
+      </div>
+    </div>
+
     <div class="costOut">Custo calculado: <b id="calcCostOut">—</b></div>
 
     <details>
@@ -479,16 +512,25 @@
   </details>
 
   <div class="footer-note">
-    <b>Shopee</b> (oficial, vendedor CNPJ — confirmado no Centro de Educação do Vendedor Shopee, mai/2026): &lt;R$8 = 50% do valor (regra especial) · R$8–79,99 = 20%+R$4 · R$80–99,99 = 14%+R$16 · R$100–199,99 = 14%+R$20 · ≥R$200 = 14%+R$26 (teto de R$100 removido em fev/2026; o Subsídio Pix de 5–8% é descontado do comprador, não afeta seu repasse). O campo "comissão afiliado extra" soma por cima dessa base.<br>
+    <b>Shopee</b> (oficial, vendedor CNPJ — confirmado no Centro de Educação do Vendedor Shopee, mai/2026): &lt;R$8 = 50% do valor (regra especial) · R$8–79,99 = 20%+R$4 · R$80–99,99 = 14%+R$16 · R$100–199,99 = 14%+R$20 · ≥R$200 = 14%+R$26 (teto de R$100 removido em fev/2026; o Subsídio Pix de 5–8% é descontado do comprador, não afeta seu repasse). Não modela a faixa regressiva abaixo de R$12 nem o adicional de R$3/item para CPF com +450 pedidos/90 dias — casos de nicho, confira o Seller Center se for o seu caso. O campo "comissão afiliado extra" soma por cima dessa base.<br>
     <b>TikTok Shop</b> (oficial, Seller University, vigente desde 15/jul/2026): produtos &lt;R$50 = 10%+R$4 fixo · produtos ≥R$50 = 6%+R$6 fixo por item. Frete Grátis soma +6% fixo, independente da faixa. Taxas incidem sobre o preço já com desconto do vendedor.<br>
     <b>Mercado Livre:</b> comissão por categoria — Clássico 10–14%, Premium 15–19% (confira a categoria exata no seller center). Desde mar/2026 o antigo custo fixo de baixo valor virou uma matriz de peso × faixa de preço (232 combinações, válida a partir de R$19) — o campo "custo operacional" é só uma referência editável; use o Simulador de Custos do ML para o valor exato do seu produto.<br>
     <b>Nuvemshop (Nuvem Pago, oficial — atualizado 23/jul/2026):</b> não há comissão de venda ao usar o Nuvem Pago (tarifa por venda é gratuita nesse caso). Cartão de crédito = taxa por plano contratado + prazo de recebimento (Começo 4,69–5,69% · Essencial 4,19–5,19% · Impulso 3,69–4,69% · Escala 3,29–3,99%, do prazo mais longo pro mais curto) + R$0,35 fixo por venda. PIX = 0,99% fixo, sem taxa adicional. Boleto = R$2,39 fixo, sem %. Parcelamento sem juros tem taxa própria (não incluída aqui) só quando o lojista assume o custo.<br>
+    <b>Mão de obra:</b> campo opcional para somar tempo de trabalho manual (acabamento, montagem, pintura etc) ao custo do produto, calculado como R$/hora × tempo informado.<br>
     "Veredito" compara a margem líquida no preço informado com a margem alvo definida acima. Sem preço informado, mostra apenas o preço mínimo necessário.
   </div>
 </div>
 
 <script>
 function num(id){ const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? 0 : v; }
+
+function laborCostValue(){
+  const laborOn = document.getElementById('laborToggle').checked;
+  if (!laborOn) return 0;
+  const rate = num('laborRate');
+  const minutes = num('laborHours')*60 + num('laborMinutesInput');
+  return (minutes/60) * rate;
+}
 
 function calcBreakdownCost(){
   const w = num('weight'), fp = num('filPrice'), ph = num('printHours'), pm = num('printMinutes'), mr = num('machineRate'), extra = num('extraCost');
@@ -497,7 +539,8 @@ function calcBreakdownCost(){
   const materialCost = weightKg * fp;
   const printMinutesTotal = ph*60 + pm;
   const machineCost = (printMinutesTotal/60) * mr;
-  return materialCost + machineCost + extra;
+  const labor = laborCostValue();
+  return materialCost + machineCost + extra + labor;
 }
 
 function updateCostPreview(){
@@ -524,7 +567,7 @@ function feeML(price, pct, fixed){
   return {pct: pct/100, fixed: fixed};
 }
 function feeTikTok(price, freeShipping, freeShipPct){
-  const base = price < 50 ? {pct:0.10, fixed:0} : {pct:0.06, fixed:6};
+  const base = price < 50 ? {pct:0.10, fixed:4} : {pct:0.06, fixed:6};
   if (freeShipping) return {pct: base.pct + (freeShipPct||0)/100, fixed: base.fixed};
   return base;
 }
@@ -703,6 +746,15 @@ function updateOwnMethodFields(){
 document.getElementById('ownMethod').addEventListener('change', updateOwnMethodFields);
 updateOwnMethodFields();
 
+function updateLaborFields(){
+  const on = document.getElementById('laborToggle').checked;
+  document.getElementById('laborRateField').style.display = on ? '' : 'none';
+  document.getElementById('laborHoursField').style.display = on ? '' : 'none';
+  document.getElementById('laborMinutesField').style.display = on ? '' : 'none';
+}
+document.getElementById('laborToggle').addEventListener('change', () => { updateLaborFields(); render(); });
+updateLaborFields();
+
 // --- Salvar cálculo no Supabase (viability_checks) ---
 const SUPABASE_URL = 'https://tfyvqhhlhcjjqajauyzb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmeXZxaGhsaGNqanFhamF1eXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNjAxMjgsImV4cCI6MjA5MjYzNjEyOH0.jNuYQenDMYcPREJC7yIi7Ow44nwU2p-lEGScsDUogic';
@@ -763,6 +815,10 @@ function buildViabilityPayload(productName){
   const printHours = num('printHours'), printMinutes = num('printMinutes');
   const printTimeMinutes = printHours*60 + printMinutes;
 
+  const laborOn = document.getElementById('laborToggle').checked;
+  const laborCostPerHour = laborOn ? num('laborRate') : null;
+  const laborMinutesTotal = laborOn ? (num('laborHours')*60 + num('laborMinutesInput')) : null;
+
   let verdict;
   if (price !== null){
     verdict = (best && best.marginAtInformed !== null)
@@ -779,6 +835,8 @@ function buildViabilityPayload(productName){
     filamentPricePerKg: num('filPrice'),
     machineRatePerHour: num('machineRate'),
     extraCosts: num('extraCost'),
+    laborCostPerHour,
+    laborMinutes: laborMinutesTotal,
     materialCost: (weightUnit==='kg' ? weight : weight/1000) * num('filPrice'),
     machineCost: (printTimeMinutes/60) * num('machineRate'),
     totalCost: cost,
