@@ -139,14 +139,15 @@
   .unit-btn:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
   .input-wrap .prefix{padding-left:12px; padding-right:6px;}
   .input-wrap .suffix{padding-right:12px; padding-left:6px;}
-  input[type=number]{
+  input[type=number], input[type=text]{
     flex:1 1 auto; width:100%; min-width:0; background:transparent; border:none; color:var(--text);
     padding:11px 12px; border-radius:var(--r-sm); font-size:15px; font-family:var(--font-mono);
+    line-height:1.4;
   }
   .input-wrap.has-prefix input{padding-left:0;}
   .input-wrap.has-suffix input{padding-right:0;}
-  input[type=number]::placeholder{color:var(--muted); font-family:var(--font-display); font-size:12.5px;}
-  input[type=number]:focus{outline:none;}
+  input[type=number]::placeholder, input[type=text]::placeholder{color:var(--muted); font-family:var(--font-display); font-size:12.5px;}
+  input[type=number]:focus, input[type=text]:focus{outline:none;}
   input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none; margin:0;}
   input[type=number]{-moz-appearance:textfield;}
   .field{margin-bottom:2px;}
@@ -400,40 +401,6 @@
     </div>
   </div>
 
-  <div class="hero neutral" id="hero">
-    <div class="hero-label">Veredito</div>
-    <div class="hero-number" id="heroNumber">—</div>
-    <div class="hero-desc" id="heroDesc">Preencha peso do filamento e tempo de impressão (ou digite o custo direto) para ver a recomendação.</div>
-    <div class="hero-badge neutral" id="heroBadge"><span class="dot"></span><span id="heroBadgeText">aguardando dados</span></div>
-  </div>
-
-  <div class="card">
-    <h2>Comparativo entre plataformas</h2>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr><th>Plataforma</th><th>Taxa aplicada</th><th>Taxa efetiva</th><th>Preço mínimo</th><th>Margem no preço informado</th><th>Veredito</th></tr>
-        </thead>
-        <tbody id="resultsBody"></tbody>
-      </table>
-    </div>
-    <div class="refresh" id="refreshNote"></div>
-  </div>
-
-  <div class="card" id="saveCard">
-    <h2>Salvar este cálculo</h2>
-    <div class="grid">
-      <div class="field" style="grid-column:1/-1;">
-        <label>Nome do produto</label>
-        <div class="input-wrap">
-          <input type="text" id="productName" placeholder="ex: Sapateira de parede com gancho">
-        </div>
-      </div>
-    </div>
-    <button type="button" class="save-btn" id="saveBtn">Salvar cálculo</button>
-    <div class="save-status" id="saveStatus"></div>
-  </div>
-
   <details class="card params-card">
     <summary>Parâmetros das plataformas (avançado)</summary>
     <div class="params-body grid">
@@ -510,6 +477,40 @@
       </div>
     </div>
   </details>
+
+  <div class="hero neutral" id="hero">
+    <div class="hero-label">Veredito</div>
+    <div class="hero-number" id="heroNumber">—</div>
+    <div class="hero-desc" id="heroDesc">Preencha peso do filamento e tempo de impressão (ou digite o custo direto) para ver a recomendação.</div>
+    <div class="hero-badge neutral" id="heroBadge"><span class="dot"></span><span id="heroBadgeText">aguardando dados</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Comparativo entre plataformas</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Plataforma</th><th>Taxa aplicada</th><th>Taxa efetiva</th><th>Preço mínimo</th><th>Margem no preço informado</th><th>Veredito</th></tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+    <div class="refresh" id="refreshNote"></div>
+  </div>
+
+  <div class="card" id="saveCard">
+    <h2>Salvar este cálculo</h2>
+    <div class="grid">
+      <div class="field" style="grid-column:1/-1;">
+        <label>Nome do produto</label>
+        <div class="input-wrap">
+          <input type="text" id="productName" placeholder="ex: Sapateira de parede com gancho">
+        </div>
+      </div>
+    </div>
+    <button type="button" class="save-btn" id="saveBtn">Salvar cálculo</button>
+    <div class="save-status" id="saveStatus"></div>
+  </div>
 
   <div class="footer-note">
     <b>Shopee</b> (oficial, vendedor CNPJ — confirmado no Centro de Educação do Vendedor Shopee, mai/2026): &lt;R$8 = 50% do valor (regra especial) · R$8–79,99 = 20%+R$4 · R$80–99,99 = 14%+R$16 · R$100–199,99 = 14%+R$20 · ≥R$200 = 14%+R$26 (teto de R$100 removido em fev/2026; o Subsídio Pix de 5–8% é descontado do comprador, não afeta seu repasse). Não modela a faixa regressiva abaixo de R$12 nem o adicional de R$3/item para CPF com +450 pedidos/90 dias — casos de nicho, confira o Seller Center se for o seu caso. O campo "comissão afiliado extra" soma por cima dessa base.<br>
